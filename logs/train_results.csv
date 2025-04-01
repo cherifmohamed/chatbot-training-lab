@@ -1,0 +1,1 @@
+accuracy,loss,batches,emb_dim,hid_dim,epochs,batch_size,learning_rate,teacher_forcing,model_name
