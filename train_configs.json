@@ -12,26 +12,8 @@
     "emb_dim": 64,
     "hid_dim": 128,
     "epochs": 5,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": true
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 128,
-    "epochs": 5,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "teacher_forcing": 1.0,
-    "done": true
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 128,
-    "epochs": 5,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
     "teacher_forcing": 1.0,
     "done": true
   },
@@ -48,26 +30,8 @@
     "emb_dim": 64,
     "hid_dim": 128,
     "epochs": 10,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": true
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 128,
-    "epochs": 10,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "teacher_forcing": 1.0,
-    "done": true
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 128,
-    "epochs": 10,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
     "teacher_forcing": 1.0,
     "done": true
   },
@@ -84,15 +48,6 @@
     "emb_dim": 64,
     "hid_dim": 256,
     "epochs": 5,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": true
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 256,
-    "epochs": 5,
     "batch_size": 64,
     "learning_rate": 0.001,
     "teacher_forcing": 1.0,
@@ -101,15 +56,6 @@
   {
     "emb_dim": 64,
     "hid_dim": 256,
-    "epochs": 5,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": true
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 256,
     "epochs": 10,
     "batch_size": 32,
     "learning_rate": 0.001,
@@ -120,26 +66,8 @@
     "emb_dim": 64,
     "hid_dim": 256,
     "epochs": 10,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 256,
-    "epochs": 10,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 64,
-    "hid_dim": 256,
-    "epochs": 10,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
     "teacher_forcing": 1.0,
     "done": false
   },
@@ -156,26 +84,8 @@
     "emb_dim": 128,
     "hid_dim": 128,
     "epochs": 5,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 128,
-    "epochs": 5,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 128,
-    "epochs": 5,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
     "teacher_forcing": 1.0,
     "done": false
   },
@@ -192,26 +102,8 @@
     "emb_dim": 128,
     "hid_dim": 128,
     "epochs": 10,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 128,
-    "epochs": 10,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 128,
-    "epochs": 10,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
     "teacher_forcing": 1.0,
     "done": false
   },
@@ -228,26 +120,8 @@
     "emb_dim": 128,
     "hid_dim": 256,
     "epochs": 5,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 256,
-    "epochs": 5,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 256,
-    "epochs": 5,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
     "teacher_forcing": 1.0,
     "done": false
   },
@@ -264,26 +138,8 @@
     "emb_dim": 128,
     "hid_dim": 256,
     "epochs": 10,
-    "batch_size": 32,
-    "learning_rate": 0.0005,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 256,
-    "epochs": 10,
     "batch_size": 64,
     "learning_rate": 0.001,
-    "teacher_forcing": 1.0,
-    "done": false
-  },
-  {
-    "emb_dim": 128,
-    "hid_dim": 256,
-    "epochs": 10,
-    "batch_size": 64,
-    "learning_rate": 0.0005,
     "teacher_forcing": 1.0,
     "done": false
   }
