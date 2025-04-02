@@ -2,7 +2,7 @@ import torch
 from model import Encoder, Decoder
 
 # Load the saved model and vocab
-checkpoint = torch.load("seq2seq_model.pt")
+checkpoint = torch.load("models_train/11.99_79.69_157_64_128_5_32_seq2seq_model.pt")
 word2idx = checkpoint["word2idx"]
 idx2word = checkpoint["idx2word"]
 

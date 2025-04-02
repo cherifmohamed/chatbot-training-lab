@@ -8,6 +8,10 @@ from model import Encoder, Decoder
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
+# === Set device ===
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"🚀 Using device: {device}")
+
 # === Loop through all remaining configs ===
 while True:
     # === Load config file and find the next unfinished config ===
@@ -36,9 +40,8 @@ while True:
     with open("data/train_pairs.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    sampled = random.sample(data, 1000)
-    inputs = [pair["input"] for pair in sampled]
-    outputs = [pair["output"] for pair in sampled]
+    inputs = [pair["input"] for pair in data]
+    outputs = [pair["output"] for pair in data]
 
     print(f"Loaded {len(inputs)} training pairs.")
 
@@ -62,16 +65,16 @@ while True:
 
     # === Prepare model ===
     INPUT_DIM = OUTPUT_DIM = len(word2idx)
-    encoder = Encoder(INPUT_DIM, EMB_DIM, HID_DIM)
-    decoder = Decoder(OUTPUT_DIM, EMB_DIM, HID_DIM)
+    encoder = Encoder(INPUT_DIM, EMB_DIM, HID_DIM).to(device)
+    decoder = Decoder(OUTPUT_DIM, EMB_DIM, HID_DIM).to(device)
     criterion = nn.CrossEntropyLoss(ignore_index=0)
     optimizer = torch.optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LEARNING_RATE)
 
     def batch_data(X, Y):
         dataset = list(zip(X, Y))
         return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=lambda batch: (
-            pad_sequence([x for x, _ in batch], padding_value=0),
-            pad_sequence([y for _, y in batch], padding_value=0)
+            pad_sequence([x for x, _ in batch], padding_value=0).to(device),
+            pad_sequence([y for _, y in batch], padding_value=0).to(device)
         ))
 
     # === Training loop ===
