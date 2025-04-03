@@ -1,147 +1,72 @@
 import torch
 import torch.nn as nn
-import json
+import torch.optim as optim
+from model import TextGenGRU
+from utils import tokenize
 import os
-import csv
-import random
-from model import Encoder, Decoder
-from torch.utils.data import DataLoader
-from torch.nn.utils.rnn import pad_sequence
+import json
 
-# === Set device ===
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"🚀 Using device: {device}")
+# === Load and prepare data ===
+with open("data/dialog.txt", "r", encoding="utf-8") as f:
+    lines = f.readlines()
 
-# === Loop through all remaining configs ===
-while True:
-    # === Load config file and find the next unfinished config ===
-    with open("train_configs.json", "r") as f:
-        configs = json.load(f)
+# === Split into parts (1/100 each run) ===
+PARTS = 100
+lines_per_part = len(lines) // PARTS
 
-    current_config = None
-    for config in configs:
-        if not config.get("done", False):
-            current_config = config
-            break
+# === Training Loop over all parts ===
+for part_index in range(PARTS):
+    start = part_index * lines_per_part
+    end = (part_index + 1) * lines_per_part if part_index < PARTS - 1 else len(lines)
+    part_lines = lines[start:end]
 
-    if not current_config:
-        print("✅ All experiments completed!")
-        break
+    text = " ".join([line.strip() for line in part_lines if line.strip()])
+    tokens = text.lower().split()
 
-    # Extract parameters
-    EMB_DIM = current_config["emb_dim"]
-    HID_DIM = current_config["hid_dim"]
-    N_EPOCHS = current_config["epochs"]
-    BATCH_SIZE = current_config["batch_size"]
-    LEARNING_RATE = current_config.get("learning_rate", 0.001)
-    TEACHER_FORCING = current_config.get("teacher_forcing", 1.0)
-
-    # === Load training data ===
-    with open("data/train_pairs.json", "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    inputs = [pair["input"] for pair in data]
-    outputs = [pair["output"] for pair in data]
-
-    print(f"Loaded {len(inputs)} training pairs.")
-
-    # === Build vocabulary ===
-    words = set()
-    for sentence in inputs + outputs:
-        for word in sentence.lower().split():
-            words.add(word)
-
-    word2idx = {w: i+2 for i, w in enumerate(words)}
-    word2idx["<pad>"] = 0
-    word2idx["<sos>"] = 1
-    word2idx["<eos>"] = len(word2idx)
+    special_tokens = ["<pad>", "<eos>", "<sos>"]
+    words = sorted(set(tokens) | set(special_tokens))
+    word2idx = {w: i for i, w in enumerate(words)}
     idx2word = {i: w for w, i in word2idx.items()}
 
-    def tokenize(sentence):
-        return [word2idx.get(word, 0) for word in sentence.lower().split()] + [word2idx["<eos>"]]
+    vocab_size = len(word2idx)
+    print(f"📚 Vocab size: {vocab_size}")
+    print(f"🧪 Training part {part_index+1}/{PARTS} on {len(part_lines)} lines")
 
-    X = [torch.tensor(tokenize(s)) for s in inputs]
-    Y = [torch.tensor([word2idx["<sos>"]] + tokenize(s)) for s in outputs]
+    encoded = [word2idx.get(word, word2idx["<pad>"]) for word in tokens]
+    input_seq = torch.tensor(encoded[:-1]).unsqueeze(1)
+    target_seq = torch.tensor(encoded[1:]).unsqueeze(1)
 
-    # === Prepare model ===
-    INPUT_DIM = OUTPUT_DIM = len(word2idx)
-    encoder = Encoder(INPUT_DIM, EMB_DIM, HID_DIM).to(device)
-    decoder = Decoder(OUTPUT_DIM, EMB_DIM, HID_DIM).to(device)
-    criterion = nn.CrossEntropyLoss(ignore_index=0)
-    optimizer = torch.optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LEARNING_RATE)
+    EMB_DIM = 64
+    HID_DIM = 128
+    N_EPOCHS = 10
+    LR = 0.005
 
-    def batch_data(X, Y):
-        dataset = list(zip(X, Y))
-        return DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=lambda batch: (
-            pad_sequence([x for x, _ in batch], padding_value=0).to(device),
-            pad_sequence([y for _, y in batch], padding_value=0).to(device)
-        ))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = TextGenGRU(vocab_size, EMB_DIM, HID_DIM).to(device)
+    model_path = "models/textgen_gru.pt"
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path, map_location=device))
 
-    # === Training loop ===
-    total_tokens = 0
-    correct_tokens = 0
-    dataloader = batch_data(X, Y)
-    num_batches = len(dataloader)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
+    criterion = nn.CrossEntropyLoss()
 
+    print("🚀 Starting training...")
     for epoch in range(N_EPOCHS):
-        epoch_loss = 0
+        model.train()
+        optimizer.zero_grad()
 
-        for src_batch, trg_batch in dataloader:
-            encoder_hidden = encoder(src_batch)
-            input_token = trg_batch[0]
-            loss = 0
+        output, _ = model(input_seq.to(device))
+        output = output.view(-1, vocab_size)
+        loss = criterion(output, target_seq.view(-1).to(device))
 
-            for t in range(1, trg_batch.size(0)):
-                output, encoder_hidden = decoder(input_token, encoder_hidden)
-                target = trg_batch[t]
-                loss += criterion(output, target)
+        loss.backward()
+        optimizer.step()
 
-                predictions = output.argmax(1)
-                correct_tokens += (predictions == target).sum().item()
-                total_tokens += target.size(0)
+        print(f"Part {part_index+1}/{PARTS} | Epoch {epoch+1}/{N_EPOCHS} | Loss: {loss.item():.4f}")
 
-                input_token = target if torch.rand(1).item() < TEACHER_FORCING else predictions
+    os.makedirs("models", exist_ok=True)
+    torch.save(model.state_dict(), model_path)
+    with open("models/vocab.json", "w", encoding="utf-8") as f:
+        json.dump({"word2idx": word2idx, "idx2word": idx2word}, f, indent=2)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
-
-        print(f"Epoch {epoch+1}/{N_EPOCHS} | Loss: {epoch_loss / num_batches:.4f}")
-
-    # === Save model ===
-    final_loss = epoch_loss / num_batches
-    accuracy = (correct_tokens / total_tokens) * 100
-
-    os.makedirs("models_train", exist_ok=True)
-    model_name = f"models_train/{accuracy:.2f}_{final_loss:.2f}_{num_batches}_{EMB_DIM}_{HID_DIM}_{N_EPOCHS}_{BATCH_SIZE}_seq2seq_model.pt"
-
-    torch.save({
-        'encoder_state': encoder.state_dict(),
-        'decoder_state': decoder.state_dict(),
-        'word2idx': word2idx,
-        'idx2word': idx2word
-    }, model_name)
-    print(f"✅ Model saved as {model_name}")
-
-    # === Save results to CSV ===
-    os.makedirs("logs", exist_ok=True)
-    csv_file = "logs/train_results.csv"
-    write_header = not os.path.exists(csv_file)
-
-    with open(csv_file, mode="a", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-        if write_header:
-            writer.writerow(["accuracy", "loss", "batches", "emb_dim", "hid_dim", "epochs", "batch_size", "learning_rate", "teacher_forcing", "model_name"])
-        writer.writerow([f"{accuracy:.2f}", f"{final_loss:.2f}", num_batches, EMB_DIM, HID_DIM, N_EPOCHS, BATCH_SIZE, LEARNING_RATE, TEACHER_FORCING, model_name])
-
-    # === Mark config as done ===
-    for config in configs:
-        if config == current_config:
-            config["done"] = True
-            break
-
-    with open("train_configs.json", "w") as f:
-        json.dump(configs, f, indent=2)
-
-    print("🔁 Moving to next config... Press Ctrl+C to stop.")
+    print("✅ Model and vocab saved for part.")
