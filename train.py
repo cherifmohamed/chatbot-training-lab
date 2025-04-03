@@ -1,61 +1,108 @@
-# === train.py ===
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from model import TextGenGRU
-from utils import tokenize
-import os
-import json
+from torch.optim import Adam
+from torch.utils.data import DataLoader, TensorDataset
+from model import TextGenGRU  # Import your existing model
+import time
 
-# === Load and prepare data ===
-with open("data/dialog.txt", "r", encoding="utf-8") as f:
-    lines = f.readlines()
+def train_model():
+    # Configuration
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    batch_size = 64
+    num_epochs = 20
+    learning_rate = 3e-4
 
-text = " ".join([line.strip() for line in lines if line.strip()])
-tokens = text.lower().split()
+    # Load processed data
+    data = torch.load("processed_data.pt")
+    train_data = data["train"]
+    val_data = data["val"]
+    word2idx = data["word2idx"]
+    
+    # Create DataLoaders (modified for your model's input format)
+    train_dataset = TensorDataset(train_data, torch.roll(train_data, -1, 1))
+    val_dataset = TensorDataset(val_data, torch.roll(val_data, -1, 1))
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size)
 
-special_tokens = ["<pad>", "<eos>", "<sos>"]
-words = sorted(set(tokens) | set(special_tokens))
-word2idx = {w: i for i, w in enumerate(words)}
-idx2word = {i: w for w, i in word2idx.items()}
+    # Initialize model from your model.py
+    model = TextGenGRU(
+        vocab_size=len(word2idx),
+        emb_dim=256,
+        hid_dim=512,
+        num_layers=2
+    ).to(device)
+    
+    # Loss and optimizer
+    criterion = nn.CrossEntropyLoss(ignore_index=word2idx["<pad>"])
+    optimizer = Adam(model.parameters(), lr=learning_rate)
+    
+    best_val_loss = float('inf')
+    train_losses = []
+    val_losses = []
 
-vocab_size = len(word2idx)
-print(f"📚 Vocab size: {vocab_size}")
-print(f"🧪 Training on {len(lines)} lines")
+    # Training loop
+    for epoch in range(num_epochs):
+        model.train()
+        epoch_train_loss = 0
+        start_time = time.time()
+        
+        for inputs, targets in train_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            
+            # Forward pass
+            optimizer.zero_grad()
+            outputs, _ = model(inputs.permute(1, 0))  # (seq_len, batch, vocab)
+            
+            # Calculate loss
+            loss = criterion(
+                outputs.view(-1, outputs.size(-1)),
+                targets.T.contiguous().view(-1)
+            )
+            
+            # Backward pass
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+            
+            epoch_train_loss += loss.item()
 
-encoded = [word2idx.get(word, word2idx["<pad>"]) for word in tokens]
-input_seq = torch.tensor(encoded[:-1]).unsqueeze(1)
-target_seq = torch.tensor(encoded[1:]).unsqueeze(1)
+        # Validation
+        model.eval()
+        epoch_val_loss = 0
+        with torch.no_grad():
+            for inputs, targets in val_loader:
+                inputs, targets = inputs.to(device), targets.to(device)
+                outputs, _ = model(inputs.permute(1, 0))
+                loss = criterion(
+                    outputs.view(-1, outputs.size(-1)),
+                    targets.T.contiguous().view(-1)
+                )
+                epoch_val_loss += loss.item()
 
-EMB_DIM = 64
-HID_DIM = 128
-N_EPOCHS = 10
-LR = 0.005
+        # Calculate metrics
+        avg_train_loss = epoch_train_loss / len(train_loader)
+        avg_val_loss = epoch_val_loss / len(val_loader)
+        epoch_time = time.time() - start_time
+        
+        # Save best model
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            torch.save(model.state_dict(), "best_model.pth")
+            print(f"Saved new best model with val loss: {best_val_loss:.4f}")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = TextGenGRU(vocab_size, EMB_DIM, HID_DIM).to(device)
-model_path = "models/textgen_gru.pt"
+        # Print progress
+        print(f"\nEpoch {epoch+1}/{num_epochs} | Time: {epoch_time:.2f}s")
+        print(f"Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
+        print("-" * 50)
 
-optimizer = optim.Adam(model.parameters(), lr=LR)
-criterion = nn.CrossEntropyLoss()
+        # Early stopping check
+        if avg_val_loss > 2 * avg_train_loss:
+            print("Stopping early due to overfitting!")
+            break
 
-print("🚀 Starting training...")
-for epoch in range(N_EPOCHS):
-    model.train()
-    optimizer.zero_grad()
+    print("\nTraining complete!")
+    print(f"Best validation loss: {best_val_loss:.4f}")
 
-    output, _ = model(input_seq.to(device))
-    output = output.view(-1, vocab_size)
-    loss = criterion(output, target_seq.view(-1).to(device))
-
-    loss.backward()
-    optimizer.step()
-
-    print(f"Epoch {epoch+1}/{N_EPOCHS} | Loss: {loss.item():.4f}")
-
-os.makedirs("models", exist_ok=True)
-torch.save(model.state_dict(), model_path)
-with open("models/vocab.json", "w", encoding="utf-8") as f:
-    json.dump({"word2idx": word2idx, "idx2word": idx2word}, f, indent=2)
-
-print("✅ Model and vocab saved.")
+if __name__ == "__main__":
+    train_model()
